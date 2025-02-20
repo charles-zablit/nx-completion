@@ -150,10 +150,8 @@ _wrapper() {
   eval "$_wrapped_command"
 }
 
-parse_vite_help() {
-  local cmd="pnpm exec vite --help"
-  local output
-  output=($(eval $cmd | awk '
+parse_help() {
+  output=($(echo $help_info | awk '
     {
       if (match($0, /^[[:space:]]*(--[^ ]+)/)) {
         printf "%s ", $1
@@ -189,27 +187,16 @@ _nx_command() {
     "--skip-nx-cache[Rerun the tasks even when the results are available in the cache.]"
   )
 
-  # _arguments $(_nx_arguments) "1:foo:(test)" ":foo:(a b c)" && ret=0
-
-  # return 0
-
   local help_command=$(jq -r ".nodes.\"$words[2]\".data.targets.\"$words[1]\".metadata.help.command" $(_workspace_root))
-  if [ -n "$help_command" ]; then
-    # local help_info=$(eval "$help_command")
-    if [ -n "$help_command" ]; then
-      # parse_vite_help
-      # _arguments $(_nx_arguments) $(parse_vite_help) && ret=0
-      _arguments $(_nx_arguments) "1:foo:$word[1]" ":bar:parse_vite_help" && ret=0
+  if [ -n "$help_command" ] && [ $help_command != "null" ]; then
+    help_info=$(eval "$help_command")
+    if [ -n "$help_info" ]; then
+      _arguments $(_nx_arguments) "1:foo:$word[1]" ":bar:parse_help" && ret=0
       _wrapped_command=$help_command
-      # _arguments '*:arg: _default' -- git && ret=0
-      # _arguments $(_nx_arguments) \
-      #   $opts_help \
-      #   "--config[The path to a Jest config file specifying how to find and execute tests. If no rootDir is set in the config, the directory containing the config file is assumed to be the rootDir for the project. This can also be a JSON-encoded value which Jest will use as configuration.]:file:_files" \
-      #   ":project:_list_projects" && ret=0
       ret=0
+      return 0
     fi
   fi
-  return 0
 
   case "$words[1]" in
     (affected|affected:apps|affected:build|affected:libs|affected:e2e|affected:lint|affected:test|affected:graph|format|format:write|format:check|print-affected)
@@ -492,7 +479,8 @@ _nx_completion() {
     $opts_help \
     "--version[Show version number]" \
     ": :->root_command" \
-    "*:: :->command" && ret=0
+    "*:: :->command" \
+    && ret=0
 
   case $state in
     (root_command)
