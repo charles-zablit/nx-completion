@@ -1,7 +1,4 @@
-# @todo: Document.
-_nx_command() {
-  echo "${words[2]}"
-}
+source "$(dirname "$0")/functions/workspace.zsh"
 
 # @todo: Document.
 _nx_arguments() {
@@ -10,55 +7,11 @@ _nx_arguments() {
   fi
 }
 
-# Describe the cache policy.
-_nx_caching_policy() {
-  oldp=( "$1"(Nmh+1) ) # 1 hour
-  (( $#oldp ))
-}
-
-# Check if at least one of w_defs are present in working dir.
-_check_workspace_def() {
-  integer ret=1
-  local files=(
-    "$PWD/angular.json"
-    "$PWD/workspace.json"
-    "$PWD/nx.json"
-  )
-  
-  # return 1 if none of the files are present.
-  for f in $files; do
-    if [[ -f $f ]]; then
-      ret=0
-      break
-    fi
-  done
-
-  # To get all workspace projects and targets nx graph needs to be called to store the
-  # data in a file.
-  if [[ $ret -eq 0 ]]; then
-    local cwd_id=$(echo $PWD | (command -v md5sum &> /dev/null && md5sum || md5 -r) | awk '{print $1}')
-    tmp_cached_def="/tmp/nx-completion-$cwd_id.json"
-    nx graph --file="$tmp_cached_def" > /dev/null
-  fi
-
-  return ret
-}
-
-# Read workspace definition from generated tmp file. 
-# Assumes _check_workspace_def get called before.
-_workspace_def() {
-  integer ret=1
-  if [[ -f $tmp_cached_def ]]; then
-    echo $tmp_cached_def && ret=0
-  fi
-  return ret
-}
-
 # Collect workspace projects
 _workspace_projects() {
   integer ret=1
-  local def=$(_workspace_def)
-  local -a projects=($(<$def | jq -r '.graph.nodes[] | .name'))
+  local def=$(_workspace_root)
+  local -a projects=($(<$def | jq -r '.nodes[] | .name'))
   echo $projects && ret=0
   return ret
 }
@@ -66,8 +19,8 @@ _workspace_projects() {
 # Collect workspace targets
 _nx_workspace_targets() {
   integer ret=1
-  local def=$(_workspace_def)
-  jq -r '[.graph.nodes[] | .data.targets | keys[]] | unique[] | if test(":") then . | gsub(":"; "\\:") else . end' $def && ret=0
+  local def=$(_workspace_root)
+  jq -r '[.nodes[] | .data.targets | keys[]] | unique[] | if test(":") then . | gsub(":"; "\\:") else . end' $def && ret=0
   return ret
 }
 
@@ -78,7 +31,7 @@ _nx_workspace_targets() {
 _list_projects() {
   [[ $PREFIX = -* ]] && return 1
   integer ret=1
-  local def=$(_workspace_def)
+  local def=$(_workspace_root)
   local -a projects=($(_workspace_projects))
   # Autocomplete projects as an option$ (eg: nx run demo...).
   _describe -t nx-projects "Nx projects" projects && ret=0
@@ -88,8 +41,8 @@ _list_projects() {
 _list_targets() {
   [[ $PREFIX = -* ]] && return 1
   integer ret=1
-  local def=$(_workspace_def)
-  local -a targets=($(<$def | jq -r '.graph.nodes[] | { name: .name, target: (.data.targets | keys[] | if test(":") then . | tojson | gsub(":"; "\\:") else . end ) } | .name + "\\:" + .target'))
+  local def=$(_workspace_root)
+  local -a targets=($(<$def | jq -r '.nodes[] | { name: .name, target: (.data.targets | keys[] | if test(":") then . | tojson | gsub(":"; "\\:") else . end ) } | .name + "\\:" + .target'))
 
   _describe -t project-targets 'Project targets' targets && ret=0
   return ret
@@ -170,6 +123,47 @@ _nx_commands() {
   return ret
 }
 
+# parse_vite_help() {
+#   local output
+#   output=$($1 | awk '
+#     /^\s*-/ {
+#       gsub(/\[|\]/, "", $0)
+
+#       if (match($0, /^(\s*[-a-zA-Z0-9_, ]+)/, opt)) {
+#         desc = substr($0, length(opt[1]) + 2)
+
+#         split(opt[1], parts, ", ")
+#         if (length(parts) == 2) {
+#           printf "\"%s[%s]\" \"%s[%s]\"\n", parts[1], desc, parts[2], desc
+#         } else {
+#           printf "\"%s[%s]\"\n", parts[1], desc
+#         }
+#       }
+#     }'
+#   )
+
+#   echo "$output"
+# }
+
+_wrapper() {
+  echo "helo"
+  eval "$_wrapped_command"
+}
+
+parse_vite_help() {
+  local cmd="pnpm exec vite --help"
+  local output
+  output=($(eval $cmd | awk '
+    {
+      if (match($0, /^[[:space:]]*(--[^ ]+)/)) {
+        printf "%s ", $1
+      }
+    }'
+  ))
+
+  _describe -t nx-projects "Nx projects" output && ret=0
+}
+
 _nx_command() {
   integer ret=1
   local -a _command_args opts_help opts_affected
@@ -194,7 +188,29 @@ _nx_command() {
     "--verbose[Print additional error stack trace on failure.]"
     "--skip-nx-cache[Rerun the tasks even when the results are available in the cache.]"
   )
-  
+
+  # _arguments $(_nx_arguments) "1:foo:(test)" ":foo:(a b c)" && ret=0
+
+  # return 0
+
+  local help_command=$(jq -r ".nodes.\"$words[2]\".data.targets.\"$words[1]\".metadata.help.command" $(_workspace_root))
+  if [ -n "$help_command" ]; then
+    # local help_info=$(eval "$help_command")
+    if [ -n "$help_command" ]; then
+      # parse_vite_help
+      # _arguments $(_nx_arguments) $(parse_vite_help) && ret=0
+      _arguments $(_nx_arguments) "1:foo:$word[1]" ":bar:parse_vite_help" && ret=0
+      _wrapped_command=$help_command
+      # _arguments '*:arg: _default' -- git && ret=0
+      # _arguments $(_nx_arguments) \
+      #   $opts_help \
+      #   "--config[The path to a Jest config file specifying how to find and execute tests. If no rootDir is set in the config, the directory containing the config file is assumed to be the rootDir for the project. This can also be a JSON-encoded value which Jest will use as configuration.]:file:_files" \
+      #   ":project:_list_projects" && ret=0
+      ret=0
+    fi
+  fi
+  return 0
+
   case "$words[1]" in
     (affected|affected:apps|affected:build|affected:libs|affected:e2e|affected:lint|affected:test|affected:graph|format|format:write|format:check|print-affected)
       _arguments $(_nx_arguments) \
@@ -451,9 +467,9 @@ _nx_command() {
 }
 
 _nx_completion() {
-  # In case no workspace found in current workind dir,
+  # In case no workspace found in current working dir,
   # suggest creating a new workspace.
-  _check_workspace_def
+  __check_workspace_def
   if [[ $? -eq 1 ]] ; then
     local bold=$(tput bold)
     local normal=$(tput sgr0)
