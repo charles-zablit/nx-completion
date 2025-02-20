@@ -56,6 +56,18 @@ Then source it in your `.zshrc`:
 source ~/.nx-completion/nx-completion.plugin.zsh
 ```
 
+## Caveats
+
+If you are invoking `nx` through your package manager (i.e `pnpm nx` instead of `nx`), please add the following to your `.zshrc` file:
+
+```bash
+function nx() {
+  pnpm nx "$@"
+}
+```
+
+More information [here](https://github.com/jscutlery/nx-completion/issues/16#issuecomment-1402311411).
+
 ## License
 
 This project is MIT licensed.

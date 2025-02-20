@@ -123,33 +123,6 @@ _nx_commands() {
   return ret
 }
 
-# parse_vite_help() {
-#   local output
-#   output=$($1 | awk '
-#     /^\s*-/ {
-#       gsub(/\[|\]/, "", $0)
-
-#       if (match($0, /^(\s*[-a-zA-Z0-9_, ]+)/, opt)) {
-#         desc = substr($0, length(opt[1]) + 2)
-
-#         split(opt[1], parts, ", ")
-#         if (length(parts) == 2) {
-#           printf "\"%s[%s]\" \"%s[%s]\"\n", parts[1], desc, parts[2], desc
-#         } else {
-#           printf "\"%s[%s]\"\n", parts[1], desc
-#         }
-#       }
-#     }'
-#   )
-
-#   echo "$output"
-# }
-
-_wrapper() {
-  echo "helo"
-  eval "$_wrapped_command"
-}
-
 parse_help() {
   output=($(echo $help_info | awk '
     {
