@@ -33,7 +33,7 @@ brew install jq
 Clone the repository into the custom plugins directory:
 
 ```shell
-git clone git@github.com:jscutlery/nx-completion.git ~/.oh-my-zsh/custom/plugins/nx-completion
+git clone git@github.com:charles-zablit/nx-completion.git ~/.oh-my-zsh/custom/plugins/nx-completion
 ```
 
 Then load it as a plugin in your `.zshrc`:
@@ -47,7 +47,7 @@ plugins+=(nx-completion)
 Clone this repository somewhere (`~/.nx-completion` for example):
 
 ```shell
-git clone git@github.com:jscutlery/nx-completion.git ~/.nx-completion
+git clone git@github.com:charles-zablit/nx-completion.git ~/.nx-completion
 ```
 
 Then source it in your `.zshrc`:
